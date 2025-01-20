@@ -1,0 +1,79 @@
+---
+title: "Tarea 3 Algoritmos e IA"
+author: "Lucia Martinez, Carlos y Estefani Casallas"
+date: "2025-01-19"
+output: html_document
+---
+
+# Actividad Grupal Algoritmos e IA 
+
+*Análisis de un conjunto de datos de origen biológico mediante técnicas de machine learning supervisadas y no supervisadas*
+
+## Preparación del entorno de trabajo (instalación y carga de paquetes)
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Depurado del conjunto de datos
+
+```{r}
+
+```
+
+**¿Qué método habéis escogido para llevar a cabo la imputación de los datos? Razonad vuestra respuesta. (0,3 puntos)**
+
+Blablabla. Nota:  Imputar datos se refiere a una técnica utilizada en el análisis de datos para reemplazar los valores perdidos en un conjunto de datos con estimaciones razonables. El objetivo de la imputación es manejar datos incompletos sin sesgar los resultados del análisis posterior. Hay varios métodos para imputar datos, como la media, la mediana, la regresión, o métodos más complejos como la imputación múltiple o los algoritmos de aprendizaje automático.
+
+
+**¿Habéis llevado a cabo algún otro tipo de procesamiento? Razonad vuestra respuesta. (0,2 puntos).**
+
+Blablabla
+
+## Implementación de cuatro métodos de aprendizaje no supervisado
+
+En esta sección se implementarán los métodos X e Y de reducción de dimensionalidad, y W y Z de clusterización.
+
+```{r}
+
+```
+
+**¿Cuál es el motivo por el cual habéis seleccionado estas técnicas de reducción de dimensionalidad? (0,3 puntos).**
+
+Blablabla
+
+**¿Cuál es el motivo por el cual habéis seleccionado estas técnicas de clusterización? (0,3 puntos).**
+
+Blablabla
+
+**En ambos casos, ¿qué aspectos positivos y negativos tienen cada una? (0,2 puntos).**
+
+Blablabla
+
+**En el caso de la clusterización, ¿podéis afirmar con certeza que los clústeres generados son los mejores posibles? Razonad vuestra respuesta. (0,2 puntos).**
+
+Blablabla
+
+## Implementación de tres métodos de aprendizaje supervisado y cálculo de métricas de evaluación
+
+```{r}
+
+```
+
+**¿Cuál es el motivo por el cual habéis seleccionado ambas técnicas de aprendizaje supervisado? ¿Cuál ha dado mejores resultados a la hora de clasificar las muestras? Razonad vuestra respuesta (1 punto).**
+
+Blablabla
+
+**¿Habéis considerado oportuno implementar algún método de reducción de dimensionalidad para procesar los datos antes de implementarlos en dichas técnicas? ¿Por qué? (0,5 puntos).**
+
+Blablabla
+
+**¿Qué aspectos positivos y negativos tienen cada una de las técnicas que habéis escogido? (0,25 puntos).**
+
+Blablabla
+
+## Pregunta final
+
+**De estas cuatro opciones (Red de perceptrones, Redes convolucionales, Redes recurrentes y Redes de grafos), ¿qué tipo de arquitectura de deep learning sería la más adecuada para procesar datos de expresión génica? Razonad vuestra respuesta (0,25 puntos).**
+
+Blablabla
