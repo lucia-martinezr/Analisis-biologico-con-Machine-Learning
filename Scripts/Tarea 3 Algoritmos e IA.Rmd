@@ -12,7 +12,14 @@ output: html_document
 ## Preparación del entorno de trabajo (instalación y carga de paquetes)
 
 ```{r setup, include=TRUE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, # Hace que el código se muestre en el html
+                      message = FALSE, # Para no mostrar los mensajes
+                      warning = FALSE, # Para no mostrar los avisos
+                      fig.align = 'center', # Para que las figuras salgan alineadas en el html
+)
+
+# Creo que la instalación de paquetes debería ir en cada chunk, cada uno sabe lo que pone para su parte del trabajo. Cuando esté completo trasladamos las líneas de código de instalación a esta parte.
+
 ```
 
 ## Depurado del conjunto de datos
