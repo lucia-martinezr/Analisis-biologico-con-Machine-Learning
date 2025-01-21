@@ -1,6 +1,6 @@
 ---
 title: "Tarea 3 Algoritmos e IA"
-author: "Lucia Martinez, Carlos y Estefani Casallas"
+author: "Lucia Martinez, Carlos Garcia y Estefani Casallas"
 date: "2025-01-19"
 output: html_document
 ---
