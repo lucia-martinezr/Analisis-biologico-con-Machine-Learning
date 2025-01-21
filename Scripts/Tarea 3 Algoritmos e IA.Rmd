@@ -24,7 +24,27 @@ knitr::opts_chunk$set(echo = TRUE, # Hace que el código se muestre en el html
 
 ## Depurado del conjunto de datos
 
-```{r}
+```{r cargar_datos}
+# Configuración del entorno de trabajo y carga de librerías
+library(here)
+
+# Validar existencia de archivos necesarios
+required_files <- list(
+  classes = here("muestras", "classes.csv"),
+  gene_expression = here("muestras", "gene_expression.csv"),
+  column_names = here("muestras", "column_names.txt")
+)
+
+missing_files <- sapply(required_files, function(file) !file.exists(file))
+if (any(missing_files)) {
+  stop("Faltan los siguientes archivos:\n", 
+       paste(names(missing_files)[missing_files], collapse = "\n"))
+}
+
+# Cargar los datos
+classes <- read.csv(required_files$classes)
+gene_expression <- read.csv(required_files$gene_expression)
+column_names <- read.csv(required_files$column_names, header = FALSE)
 
 ```
 
