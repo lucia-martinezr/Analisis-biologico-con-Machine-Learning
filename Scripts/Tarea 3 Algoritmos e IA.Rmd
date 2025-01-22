@@ -19,7 +19,7 @@ knitr::opts_chunk$set(echo = TRUE, # Hace que el código se muestre en el html
 )
 
 # Creo que la instalación de paquetes debería ir en cada chunk, cada uno sabe lo que pone para su parte del trabajo. Cuando esté completo trasladamos las líneas de código de instalación a esta parte.
-library(here)
+library()
 
 ```
 
@@ -57,16 +57,22 @@ data <- data[, !names(data) %in% columnascero] #  Eliminación de las columnas
 colSums(is.na(data)) # Revisión de que tras el filtrado no se han generado valores NA
 data_num <- data.frame(sapply(data[,1:(ncol(data) - 1)], as.numeric)) # Conversión de los valores de expresión a numéricos.
 sc_data_num <- scale(data_num[,1:(ncol(data) - 1)])# Escalado de los datos
+colSums(is.na(data_num)) # Revisión de que tras el transformado no se han generado valores NA
+colSums(is.na(sc_data_num))
 
+# Guardado de datos
+# write.csv(data_num, "data_num.csv", row.names = FALSE)
+# sc_data_num_df <- as.data.frame(sc_data_num) # Conversión de la matriz a un data frame 
+# write.csv(sc_data_num_df, "sc_data_num.csv", row.names = FALSE)
 ```
 
 **¿Qué método habéis escogido para llevar a cabo la imputación de los datos? Razonad vuestra respuesta. (0,3 puntos)**
 
-
+Para eliminar datos que no son útiles para el desarrollo de esta tarea, y que posiblemente contribuirían a generar ruido en los resultados de la misma, se eliminaron aquellos genes que no se expresaban en ninguna muestra. En concreto 3 : "MIER3", "ZCCHC12" y "RPL22L1". Para ello, se realizó una suma por columnas de los datos de expresión con la función *colSums()*, y con el comando  *columnascero <- names(sumas[sumas==0])* se identificaron los genes no expresados para luego eliminarlos.
 
 **¿Habéis llevado a cabo algún otro tipo de procesamiento? Razonad vuestra respuesta. (0,2 puntos).**
 
-Se han eliminado aquellos genes (en concreto 3: "MIER3", "ZCCHC12" y "RPL22L1" ) cuya expresión era nula en las 801 muestras de estudio, porque para el análisis que se desarrollará en la tarea no aportan ninguna información. Además,en previsión de su uso  en los apratados posteriores de la tarea, se han transformado a numéricos (indispensable en algunos algoritmos) y se han escalado los valores de expresión génica. Este último paso permite nivelar la magnitud de expresión de los genes entre sí, favoreciendo que nuestras conclusiones se basen en razones biológicas relevantes, y no simplemente en diferencias en la magnitud de expresión de genes que no tengan que ver con la patología o condición de estudio, sino con la forma en la que se transcriben los genes en el ser humano.
+En previsión del uso de los datos de expresión en los apartados posteriores de la tarea, se han transformado a numéricos (indispensable en algunos algoritmos) y se han escalado los valores de expresión génica. Este último paso permite nivelar la magnitud de expresión de los genes entre sí, favoreciendo que nuestras conclusiones se basen en razones biológicas relevantes, y no simplemente en diferencias en la magnitud de expresión de genes que no tengan que ver con la patología o condición de estudio, sino con la forma en la que se transcriben los genes en el ser humano.
 
 ## Implementación de cuatro métodos de aprendizaje no supervisado
 
