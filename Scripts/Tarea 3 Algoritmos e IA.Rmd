@@ -5,11 +5,9 @@ date: "2025-01-19"
 output: html_document
 ---
 
-# Actividad Grupal Algoritmos e IA 
+# Actividad Grupal:
+Análisis de un conjunto de datos de origen biológico mediante técnicas de machine learning supervisadas y no supervisadas
 
-*Análisis de un conjunto de datos de origen biológico mediante técnicas de machine learning supervisadas y no supervisadas*
-
-## Preparación del entorno de trabajo (instalación y carga de paquetes)
 
 ```{r setup, include=TRUE}
 knitr::opts_chunk$set(echo = TRUE, # Hace que el código se muestre en el html
@@ -18,106 +16,63 @@ knitr::opts_chunk$set(echo = TRUE, # Hace que el código se muestre en el html
                       fig.align = 'center' # Para que las figuras salgan alineadas en el html
 )
 
-# Creo que la instalación de paquetes debería ir en cada chunk, cada uno sabe lo que pone para su parte del trabajo. Cuando esté completo trasladamos las líneas de código de instalación a esta parte.
+```
+
+```{r Preparación del entorno de trabajo (instalación y carga de paquetes), include=TRUE}
+
+#install.packages()
 library()
 
 ```
 
 ## Depurado del conjunto de datos
+En primer lugar cargaremos los datos brutos de partida 
 
 ```{r cargar_datos}
 rm(list=ls())
-path<- "C:/Users/lulim/OneDrive/Documentos/GitHub/Analisis-biologico-con-Machine-Learning/muestras"
+path<- "C:/Users/debot/Desktop/datos"
 setwd(path)
 
 # Carga de datos 
-classes <- read.csv ("C:/Users/lulim/OneDrive/Documentos/GitHub/Analisis-biologico-con-Machine-Learning/muestras/classes.csv", sep = ";", header = FALSE)
-gene_expression<- read.csv("C:/Users/lulim/OneDrive/Documentos/GitHub/Analisis-biologico-con-Machine-Learning/muestras/gene_expression.csv", sep = ";", header = FALSE)
-column_names<- read.csv("C:/Users/lulim/OneDrive/Documentos/GitHub/Analisis-biologico-con-Machine-Learning/muestras/column_names.txt", sep = ";", header = FALSE)
+classes <- read.csv ("C:/Users/debot/Desktop/datos/classes.csv", sep = ";", header = FALSE)
+gene_expression<- read.csv("C:/Users/debot/Desktop/datos/gene_expression.csv", sep = ";", header = FALSE)
+column_names<- read.csv("C:/Users/debot/Desktop/datos/column_names.txt", sep = ";", header = FALSE)
 
 # Creación de un df aglomerando los archivos cargados
 data <- gene_expression
 colnames(data)<-column_names[,1]
 row.names(data)<-classes[,1]
-data<- cbind(data,classes[,2])
+data<- cbind(data,clases = classes[,2]) # añadimos la columna clases
 
-dim(data) # Compruebo que las dimensiones del df son, para las columnas, una unidad mayor que en el df "gene_expression"
-table(data[,501]) # Compruebo el contenido de la nueva columna
+
+    #---> yo eliminaria estas dos lineas
+# (data) # Compruebo que las dimensiones del df son, para las columnas, una unidad mayor que en el df "gene_expression"
+# table(data[,501]) # Compruebo el contenido de la nueva columna
       
 # Imputación de los NA
 anyNA(data) # No hay valores missing en el df
-# na.omit(data) # En caso de haberlos, esta función elimina las filas que tengan un NA
-# dim (data) # Para saber si se han eliminado filas usaríamos dim()
+#na.omit(data) # En caso de haberlos, esta función elimina las filas que tengan un NA
+#dim (data) # Para saber si se han eliminado filas usaríamos dim()
 
-# Otros tipos de procesamiento
+
+# Depurado de columnas con valores igual a 0
 sumas<- colSums(data[1:500], na.rm = FALSE, dims = 1 ) # Suma de los datos por columnas
-columnascero <- names(sumas[sumas==0]) # Se extraen los nombres de las columnas cuyas sumas son == 0
-print(columnascero) # Se muestran los genes (columnas) a excluir
-data <- data[, !names(data) %in% columnascero] #  Eliminación de las columnas
-colSums(is.na(data)) # Revisión de que tras el filtrado no se han generado valores NA
-data_num <- data.frame(sapply(data[,1:(ncol(data) - 1)], as.numeric)) # Conversión de los valores de expresión a numéricos.
-sc_data_num <- scale(data_num[,1:(ncol(data) - 1)])# Escalado de los datos
-colSums(is.na(data_num)) # Revisión de que tras el transformado no se han generado valores NA
-colSums(is.na(sc_data_num))
+columnascero <- names(sumas[sumas==0]) # Extrae los nombres de las columnas cuya suma total de valores es igual a 0
+data <- data[, !names(data) %in% columnascero] #  Eliminación del df de las columnas con suma igual a 0 
+
+# Se muestran los columnas (genes) que se han excluido del df
+print(paste("Los genes eliminados son: ", paste(columnascero[1:3], collapse = ", ")))
+
+data[] <- lapply(data, function(x) if(is.character(x)) factor(x) else x)#transformamos las variables categóricas en factores
+data_num <- data[, sapply(data, is.numeric)]
+table(sapply(data_num, class))
+sc_data_num <- scale(data_num)
+sc_data_num_df <- as.data.frame(sc_data_num) # Conversión de la matriz a un data frame
+
+# añadimos la columna clases al "sc_data_num_df"
+sc_data_num_df$clases<-cbind(data$clases)
 
 # Guardado de datos
-# write.csv(data_num, "data_num.csv", row.names = FALSE)
-# sc_data_num_df <- as.data.frame(sc_data_num) # Conversión de la matriz a un data frame 
-# write.csv(sc_data_num_df, "sc_data_num.csv", row.names = FALSE)
+write.csv(data, "df procesado.csv", row.names = FALSE)
+write.csv(sc_data_num_df, "df val escalados.csv", row.names = FALSE)
 ```
-
-**¿Qué método habéis escogido para llevar a cabo la imputación de los datos? Razonad vuestra respuesta. (0,3 puntos)**
-
-Para eliminar datos que no son útiles para el desarrollo de esta tarea, y que posiblemente contribuirían a generar ruido en los resultados de la misma, se eliminaron aquellos genes que no se expresaban en ninguna muestra. En concreto 3 : "MIER3", "ZCCHC12" y "RPL22L1". Para ello, se realizó una suma por columnas de los datos de expresión con la función *colSums()*, y con el comando  *columnascero <- names(sumas[sumas==0])* se identificaron los genes no expresados para luego eliminarlos.
-
-**¿Habéis llevado a cabo algún otro tipo de procesamiento? Razonad vuestra respuesta. (0,2 puntos).**
-
-En previsión del uso de los datos de expresión en los apartados posteriores de la tarea, se han transformado a numéricos (indispensable en algunos algoritmos) y se han escalado los valores de expresión génica. Este último paso permite nivelar la magnitud de expresión de los genes entre sí, favoreciendo que nuestras conclusiones se basen en razones biológicas relevantes, y no simplemente en diferencias en la magnitud de expresión de genes que no tengan que ver con la patología o condición de estudio, sino con la forma en la que se transcriben los genes en el ser humano.
-
-## Implementación de cuatro métodos de aprendizaje no supervisado
-
-En esta sección se implementarán los métodos X e Y de reducción de dimensionalidad, y W y Z de clusterización.
-
-```{r}
-
-```
-
-**¿Cuál es el motivo por el cual habéis seleccionado estas técnicas de reducción de dimensionalidad? (0,3 puntos).**
-
-Blablabla
-
-**¿Cuál es el motivo por el cual habéis seleccionado estas técnicas de clusterización? (0,3 puntos).**
-
-Blablabla
-
-**En ambos casos, ¿qué aspectos positivos y negativos tienen cada una? (0,2 puntos).**
-
-Blablabla
-
-**En el caso de la clusterización, ¿podéis afirmar con certeza que los clústeres generados son los mejores posibles? Razonad vuestra respuesta. (0,2 puntos).**
-
-Blablabla
-
-## Implementación de tres métodos de aprendizaje supervisado y cálculo de métricas de evaluación
-
-```{r}
-
-```
-
-**¿Cuál es el motivo por el cual habéis seleccionado ambas técnicas de aprendizaje supervisado? ¿Cuál ha dado mejores resultados a la hora de clasificar las muestras? Razonad vuestra respuesta (1 punto).**
-
-Blablabla
-
-**¿Habéis considerado oportuno implementar algún método de reducción de dimensionalidad para procesar los datos antes de implementarlos en dichas técnicas? ¿Por qué? (0,5 puntos).**
-
-Blablabla
-
-**¿Qué aspectos positivos y negativos tienen cada una de las técnicas que habéis escogido? (0,25 puntos).**
-
-Blablabla
-
-## Pregunta final
-
-**De estas cuatro opciones (Red de perceptrones, Redes convolucionales, Redes recurrentes y Redes de grafos), ¿qué tipo de arquitectura de deep learning sería la más adecuada para procesar datos de expresión génica? Razonad vuestra respuesta (0,25 puntos).**
-
-Blablabla
