@@ -151,7 +151,7 @@ accuracy <- c(
   "GBM" = gbm_metrics$overall["Accuracy"]
 )
 best_model <- names(which.max(accuracy))
-# Calcula la precisión e identifica el mejor modelo según la precisión.
+# Calcula la precisión e identifica el mejor modelo según la precisión
 
 # Crear tabla de resultados
 library(knitr)
