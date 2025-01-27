@@ -104,24 +104,157 @@ Blablabla
 
 ## Implementación de tres métodos de aprendizaje supervisado y cálculo de métricas de evaluación
 
-```{r}
+```{r aprendizaje_supervisado}
+# Instalar paquetes y cargar librerias correspondientes
+install.packages(c("here", "caret", "randomForest", "e1071", "gbm", "kableExtra"))
+library(caret)
+library(randomForest)
+library(e1071)
+library(gbm)
+library(kableExtra)
+
+# Dividir datos en entrenamiento y prueba
+set.seed(123)
+train_index <- createDataPartition(data$Class, p = 0.8, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+# para reflejar su rendimiento real y evitar sobreajustes.
+
+# Modelo RF
+rf_model <- randomForest(Class ~ ., data = train_data, importance = TRUE)
+rf_pred <- predict(rf_model, test_data)
+rf_metrics <- confusionMatrix(rf_pred, test_data$Class)
+# Entrena el modelo de RF y calcula métricas con "confusionMatrix".
+
+# Modelo SVM
+svm_model <- train(Class ~ ., data = train_data, method = "svmLinear")
+svm_pred <- predict(svm_model, test_data)
+svm_metrics <- confusionMatrix(svm_pred, test_data$Class)
+# Entrena el modelo SVM con kernel lineal.
+
+# Modelo Gradient Boosting Machines (GBM)
+gbm_model <- train(
+  Class ~ ., 
+  data = train_data, 
+  method = "gbm", 
+  verbose = FALSE, 
+  trControl = trainControl(method = "cv", number = 5)
+)
+gbm_pred <- predict(gbm_model, test_data)
+gbm_metrics <- confusionMatrix(gbm_pred, test_data$Class)
+# Entrena el modelo GBM con validación cruzada.
+
+# Comparar resultados
+accuracy <- c(
+  "Random Forest" = rf_metrics$overall["Accuracy"],
+  "SVM" = svm_metrics$overall["Accuracy"],
+  "GBM" = gbm_metrics$overall["Accuracy"]
+)
+best_model <- names(which.max(accuracy))
+# Calcula la precisión e identifica el mejor modelo según la precisión.
+
+# Crear tabla de resultados
+library(knitr)
+library(kableExtra)
+
+resultados_modelos <- data.frame(
+  Modelo = c("Random Forest", "SVM", "GBM"),
+  Precisión = round(as.numeric(accuracy), 4)
+)
+
+# Tabla de resultados
+kable(resultados_modelos, caption = "Precisión de los modelos evaluados") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE)
+
+#  Métricas detalladas
+kable(as.data.frame(rf_metrics$table), caption = "Matriz de confusión - Random Forest") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+kable(as.data.frame(svm_metrics$table), caption = "Matriz de confusión - SVM") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+kable(as.data.frame(gbm_metrics$table), caption = "Matriz de confusión - GBM") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+# Resaltar el mejor modelo
+cat("\nEl modelo con mejor rendimiento fue:", best_model, "con una precisión de:", max(accuracy), "\n")
 
 ```
 
 **¿Cuál es el motivo por el cual habéis seleccionado ambas técnicas de aprendizaje supervisado? ¿Cuál ha dado mejores resultados a la hora de clasificar las muestras? Razonad vuestra respuesta (1 punto).**
 
-Blablabla
+Se ha seleccionado los modelos Random Forest (RF), Support Vector Machines (SVM) y  Gradient Boosting Machines (GBM) como técnicas de aprendizaje supervisado debido a sus características específicas:
+
+*- RF:* Es robusto frente a ruido, maneja datos con características no lineales, y proporciona métricas de importancia para las variables, lo cual es útil en datasets complejos de expresion génica.
+
+*- SVM:* Es eficiente para datasets con alta dimensionalidad y permite utilizar kernels para modelar relaciones complejas entre variables.
+
+*- GBM:* Captura relaciones complejas entre variables gracias a su enfoque iterativo y basado en boosting. Tambien ofrece flexibilidad mediante ajuste de hiperparámetros.
+
+Tras la implementación, los modelos RF y SVM presentaron una mayor precisión al clasificar las muestras comparado con GBM, posiblemente porque Random Forest maneja mejor datasets con muchas características (como en el caso de la expresión génica) y SVM presenta una gran capacidad para encontrar hiperplanos optimos y trabajar bien con datos de  alta dimensionalidad. Mientras que GMB podría haberse visto afectado por la escala y la relación entre variables.
 
 **¿Habéis considerado oportuno implementar algún método de reducción de dimensionalidad para procesar los datos antes de implementarlos en dichas técnicas? ¿Por qué? (0,5 puntos).**
 
-Blablabla
+Sí, se considera oportuno implementar PCA para reducir la dimensionalidad de los datos. La alta dimensionalidad de los datos de expresión génica puede introducir redundancia y ruido. PCA permite capturar el 85% de la varianza total con solo 10 componentes principales, como se observa en el gráfico de varianza explicada, lo que optimiza el análisis al reducir la complejidad sin perder información relevante.
+
+Además, la tabla de comparación de precisión demuestra que los modelos supervisados ​​mantienen un rendimiento similar tras aplicar PCA, validando la utilidad para simplificar los datos sin comprometer el desempeño.
+
+```{r aprendizaje_supervisadoPCA}
+# Reducción de dimensionalidad con PCA
+pca <- prcomp(data[, -ncol(data)], scale. = TRUE)
+pca_data <- data.frame(pca$x[, 1:10])  # Mantener las primeras 10 componentes principales
+pca_data$Class <- data$Class
+
+# Dividir datos PCA en entrenamiento y prueba
+set.seed(123)
+train_index <- createDataPartition(pca_data$Class, p = 0.8, list = FALSE)
+train_data_pca <- pca_data[train_index, ]
+test_data_pca <- pca_data[-train_index, ]
+
+# Modelo Random Forest con PCA
+rf_pca_model <- randomForest(Class ~ ., data = train_data_pca, importance = TRUE)
+rf_pca_pred <- predict(rf_pca_model, test_data_pca)
+rf_pca_metrics <- confusionMatrix(rf_pca_pred, test_data_pca$Class)
+
+# Comparar precisión con modelos originales
+accuracy_comparison <- data.frame(
+  Modelo = c("Random Forest", "SVM", "GBM", "RF (PCA)"),
+  Precisión = c(
+    rf_metrics$overall["Accuracy"],
+    svm_metrics$overall["Accuracy"],
+    gbm_metrics$overall["Accuracy"],
+    rf_pca_metrics$overall["Accuracy"]
+  )
+)
+
+# Tabla de comparación
+kable(accuracy_comparison, caption = "Comparación de la precisión de los modelos") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+```
 
 **¿Qué aspectos positivos y negativos tienen cada una de las técnicas que habéis escogido? (0,25 puntos).**
 
-Blablabla
+*- RF:* 
+  
+  Positivo: Robusto frente a ruido y datos faltantes; proporciona información sobre la importancia de las variables.
+  
+  Negativo: Propenso a sobreajustarse si los hiperparámetros no se ajustan adecuadamente; puede ser computacionalmente costoso.
+
+*- SVM:*
+  
+  Positivo: Eficaz en datasets de alta dimensionalidad; permite modelar relaciones no lineales mediante kernels.
+  
+  Negativo: Requiere preprocesamiento de datos (normalización); El ajuste de hiperparámetros puede ser complejo.
+
+*- GBM:*
+
+  Positivo: Captura relaciones complejas entre variables gracias al enfoque iterativo.
+  
+  Negativo: Sensible al ajuste de hiperparámetros y al sobreajuste; computacionalmente más demandante.
 
 ## Pregunta final
 
 **De estas cuatro opciones (Red de perceptrones, Redes convolucionales, Redes recurrentes y Redes de grafos), ¿qué tipo de arquitectura de deep learning sería la más adecuada para procesar datos de expresión génica? Razonad vuestra respuesta (0,25 puntos).**
 
-Blablabla
+La arquitectura más adecuada para datos de expresión génica es una Red de Perceptrones (MLP) , ya que los datos suelen ser tabulares o vectores de características, sin estructuras espaciales, secuenciales o en forma de gráficos. MLP es eficiente para capturar relaciones entre variables en este tipo de datos.
