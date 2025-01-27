@@ -5,7 +5,7 @@ date: "2025-01-19"
 output: html_document
 ---
 
-# Actividad Grupal Algoritmos e IA 
+# Actividad Grupal Algoritmos e IA
 
 *Análisis de un conjunto de datos de origen biológico mediante técnicas de machine learning supervisadas y no supervisadas*
 
@@ -39,7 +39,12 @@ column_names<- read.csv("C:/Users/lulim/OneDrive/Documentos/GitHub/Analisis-biol
 data <- gene_expression
 colnames(data)<-column_names[,1]
 row.names(data)<-classes[,1]
+<<<<<<< Updated upstream
 data<- cbind(data,clases = classes[,2]
+=======
+data<- cbind(data,classes[,2])
+colnames(data)[498]<-'classes'
+>>>>>>> Stashed changes
 
 #---> yo eliminaria estas dos lineas
 dim(data) # Compruebo que las dimensiones del df son, para las columnas, una unidad mayor que en el df "gene_expression"
@@ -72,7 +77,7 @@ colSums(is.na(sc_data_num))
 
 **¿Qué método habéis escogido para llevar a cabo la imputación de los datos? Razonad vuestra respuesta. (0,3 puntos)**
 
-Para eliminar datos que no son útiles para el desarrollo de esta tarea, y que posiblemente contribuirían a generar ruido en los resultados de la misma, se eliminaron aquellos genes que no se expresaban en ninguna muestra. En concreto 3 : "MIER3", "ZCCHC12" y "RPL22L1". Para ello, se realizó una suma por columnas de los datos de expresión con la función *colSums()*, y con el comando  *columnascero <- names(sumas[sumas==0])* se identificaron los genes no expresados para luego eliminarlos.
+Para eliminar datos que no son útiles para el desarrollo de esta tarea, y que posiblemente contribuirían a generar ruido en los resultados de la misma, se eliminaron aquellos genes que no se expresaban en ninguna muestra. En concreto 3 : "MIER3", "ZCCHC12" y "RPL22L1". Para ello, se realizó una suma por columnas de los datos de expresión con la función *colSums()*, y con el comando *columnascero \<- names(sumas[sumas==0])* se identificaron los genes no expresados para luego eliminarlos.
 
 **¿Habéis llevado a cabo algún otro tipo de procesamiento? Razonad vuestra respuesta. (0,2 puntos).**
 
@@ -83,12 +88,115 @@ En previsión del uso de los datos de expresión en los apartados posteriores de
 En esta sección se implementarán los métodos X e Y de reducción de dimensionalidad, y W y Z de clusterización.
 
 ```{r}
+library(stats)
+library (ggplot2)
+library(plotly)
+library(dplyr)
+
+pca.results <- prcomp(data_num, center=TRUE, scale=TRUE) # Calculo de componentes principales con la funcion prcomp
+
+pca.df <- data.frame(pca.results$x) # Resultado de las componentes principales
+
+varianzas <- pca.results$sdev^2 # Varianza 
+
+total.varianza <- sum(varianzas) # Total de la varianza de los datos
+
+varianza.explicada <- varianzas/total.varianza # Varianza explicada por cada componente principal
+
+varianza.acumulada <- cumsum(varianza.explicada) # Calculamos la varianza acumulada. Vemos que se supera el 0.9 de explicabilidad (0.9008494) en la posicion 155
+
+n.pc <- min(which(varianza.acumulada > 0.9)) # Obtenemos el numero de componentes principales que explican el 90% de la varianza (155)
+
+# Creo las etiquetas de los ejes del gráfico
+x_label <- paste0(paste('PC1', round(varianza.explicada[1] * 100, 2)), '%')
+y_label <- paste0(paste('PC2', round(varianza.explicada[2] * 100, 2)), '%')
+z_label <- paste0(paste('PC3', round(varianza.explicada[3] * 100, 2)), '%')
+
+# Representacion grafica de solo las dos primeras componentes principales 
+ggplot(pca.df, aes(x=PC1, y=PC2, color=data$classes)) +
+  geom_point(size=3) +
+  scale_color_manual(values=c('red', 'blue', 'green', 'orange', 'purple')) +
+  labs(title="Método PCA Types of Cancer", x=x_label, y=y_label, color='Grupo') +
+  theme_classic() +
+  theme(panel.grid.major = element_line(color="gray90"), panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "gray95"), plot.title = element_text(hjust = 0.5))
+
+# Conclusion: parece que existen relaciones lineales proporcionadas por la PC1 y la PC2  que diferencian a las muestras de AGH de los canceres CFB CGC CHC y HPB. El grupo de    AGH tiene algunas muestras que no se agrupan claramente con el resto del grupo, al      menos respresentando solo estas 3 componentes. El resto de grupos de cancer se agrupa   por tipo, pero no se separa del resto, por lo que en un analisis sin etiquetas, solo se  distinguiria AGH.
+
+# Representacion grafica de las tres primeras componentes principales 
+fig <- plot_ly(pca.df, 
+               x = ~PC1, 
+               y = ~PC2, 
+               z = ~PC3, 
+               color = ~data$classes,
+               colors = c('red', 'blue', 'green', 'orange', 'purple'),
+               type = 'scatter3d', 
+               mode = 'markers') %>%
+  layout(title = "Metodo PCA Types of Cancer",
+         scene = list(xaxis = list(title = x_label),
+                      yaxis = list(title = y_label),
+                      zaxis = list(title = z_label)))
+fig
+
+# Conclusion: Si añadimos el tercer componente principal al grafico observamos que el algoritmo, de nuevo, solo es capaz de separar a las muestras de cancer AGH. Por lo tanto, parece que incluir la tercera componente no es extremadamente relevante. De hecho, el componente que más permite separar los datos de AGH segun este grafico parece ser la PC2.
+
+# t-SNE
+library(Rtsne) # Para hacer el tSNE
+library(FNN) # Para evaluar la calidad de la reduccion
+
+# Determinamos la semilla para reproducibilidad
+set.seed(1234)
+
+tsne <- Rtsne(X=sc_data_num, perplexity =15)
+tsne_result <- data.frame(tsne$Y)
+
+# Graficamos
+ggplot(tsne_result, aes(x = X1, y = X2, color = data$classes)) +
+  geom_point(size = 3) +
+  scale_color_manual(values = c("red", "blue", "green", "orange", "purple")) +
+  labs(title = "Método t-SNE Types of Cancer", x = "PC1", y = "PC2", color = "Grupo") +
+  theme_classic() +
+  theme(panel.grid.major = element_line(color = "gray90"), panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "gray95"), plot.title=element_text(hjust=0.5))
+
+# Conclusion: el algoritmo de t-SNE es capaz de separar los 5 tipos de cancer casi a la perfeccion.Solo se observan 2 CGC que clusterizan con CFB, dos que lo hacen con HPB, y un HPB que clusteriza con CGC. El resto de las muestras se agrupa con segun el cancer al que pertenecen. Compruebo que la transformacion a menor dimensionalidad es buena:
+
+# Función para calcular la tasa de conservación de k-vecinos más cercanos
+conservation_rate <- function(sc_data_num, tsne_result, k) {
+  
+  # Calcula los k vecinos más cercanos en el espacio original
+  original_nn <- get.knnx(data = sc_data_num, query = sc_data_num, k = k)
+  
+  # Calcula los k vecinos más cercanos en el espacio reducido
+  reduced_nn <- get.knnx(data = tsne_result, query = tsne_result, k = k)
+  
+  # Calcula el número de coincidencias de vecinos en ambos espacios
+  overlap_count <- sapply(1:nrow(sc_data_num), function(i) {
+    length(intersect(original_nn$nn.index[i, ], reduced_nn$nn.index[i, ]))
+  })
+  
+  # Devuelve el promedio de coincidencias sobre el total de vecinos k
+  mean(overlap_count) / k
+}
+
+# Comprobacion para 2 vecinos
+k_neighbors <- 2
+rate_2d <- conservation_rate(sc_data_num, tsne_result, k_neighbors)
+rate_3d <- conservation_rate(sc_data_num, tsne_result, k_neighbors)
+
+print(paste("Tasa de conservación de 10-vecinos más cercanos en 2D:", rate_2d))
+print(paste("Tasa de conservación de 10-vecinos más cercanos en 3D:", rate_3d))
+
+# Conclusion: Una tasa de conservación de aproximadamente 0.65 indica que el  65% de los 10 vecinos más cercanos en el espacio original permanecen vecinos después de la reducción de dimensionalidad con t-SNE. Este valor, para el tsne, cuyo objetivo es mantener las relaciones locales entre vecinos mas que las globales, y en el contexto de un estudio en cancer, donde los datos son inherentemente "ruidosos", es un buen resultado. Ademas esto se corrobora con la evidente separacion de los grupos en el grafico mostrado anteriormente.
+
 
 ```
 
 **¿Cuál es el motivo por el cual habéis seleccionado estas técnicas de reducción de dimensionalidad? (0,3 puntos).**
 
-Blablabla
+- PCA: El análisis de componentes principales es el estándar en el estado del arte para una primera aproximación a los datos y para visualizar si los datos pueden representarse en un espacio lineal. 
+
+- tSNE: Ideal para explorar agrupaciones en niveles locales. Además es muy eficiente en el manejo de datos no lineales porque captura relaciones polinómicas entre las características, y como se mostró en los resultados de la PCA, las relaciones lineales no estaban siendo suficiente para diferenciar a los 5 tipos de cáncer. Es un algoritmo que da muy buenos resultados, tanto en la bibliografía, como en los ejercicios de clase, como con este dataset.
 
 **¿Cuál es el motivo por el cual habéis seleccionado estas técnicas de clusterización? (0,3 puntos).**
 
@@ -96,7 +204,10 @@ Blablabla
 
 **En ambos casos, ¿qué aspectos positivos y negativos tienen cada una? (0,2 puntos).**
 
-Blablabla
+- PCA: Tiene pocos aspectos negativos más allá del hecho de que sólo sirve para variables linealmente relacionadas, pero es un paso básico en el análisis de datos ómicos y muy útil para visualizar los datos en un primer vistazo. 
+
+- tSNE: Es un algoritmo que da muy buenos resultados en cuanto a visualización de datos, pero no es tan efectivo a la hora de reducir la dimensionalidad a más de 3 dimensiones. Tiene un cierto grado de estocasticidad y por tanto podría presentar problemas de reproducibilidad, pero al utilizar la semilla no da problemas. Se puede utilizar en este conjunto de datos porque no son de tamaño exorbitado, pero si tuviésemos cerca de un millón de muestras, sería muy computacionalmente costoso. En cuanto a sus aspectos positivos los ya mencionados anteriormente: muy efectivo a la hora de representar relaciones no lineales y mantener la localidad de los datos.
+
 
 **En el caso de la clusterización, ¿podéis afirmar con certeza que los clústeres generados son los mejores posibles? Razonad vuestra respuesta. (0,2 puntos).**
 
