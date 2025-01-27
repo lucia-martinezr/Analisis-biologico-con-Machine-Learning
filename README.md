@@ -9,6 +9,7 @@ Tarea grupal de la asignatura Algoritmos e IA del máster de Bioinformática en 
 - **muestras:** Contiene los datos de muestra utilizados para el análisis.
 - **resultados:** Incluye una carpeta con los resultados del preprocesado de datos, y otros documentos generados por los scripts.
 - **Scripts:** Carpeta contenedora del código desarrollado para realizar el análisis.
+- **Enunciado_actividad_grupal_Algoritmos.docx:** Archivo Word con las directrices de la tarea que se desarrolla en este repositorio.
 
 ## Tecnologías y herramientas
 Este proyecto ha sido desarrollado utilizando [R studio](https://posit.co/download/rstudio-desktop/).
