@@ -1,0 +1,299 @@
+---
+title: "Tarea 3 Algoritmos e IA"
+author: "Lucia Martinez, Carlos Garcia y Estefani Casallas"
+date: "2025-01-19"
+output: html_document
+---
+
+# Actividad Grupal Algoritmos e IA
+
+*Análisis de un conjunto de datos de origen biológico mediante técnicas de machine learning supervisadas y no supervisadas*
+
+## Preparación del entorno de trabajo (instalación y carga de paquetes)
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE, # Hace que el código se muestre en el html
+                      message = FALSE, # Para no mostrar los mensajes
+                      warning = FALSE, # Para no mostrar los avisos
+                      fig.align = 'center' # Para que las figuras salgan alineadas en el html
+)
+
+# Creo que la instalación de paquetes debería ir en cada chunk, cada uno sabe lo que pone para su parte del trabajo. Cuando esté completo trasladamos las líneas de código de instalación a esta parte.
+library()
+
+```
+
+## Depurado del conjunto de datos
+
+```{r cargar_datos}
+
+rm(list=ls())
+path<- "C:/Users/debot/Desktop/datos"
+setwd(path)
+
+# Carga de datos 
+classes <- read.csv ("C:/Users/debot/Desktop/datos/classes.csv", sep = ";", header = FALSE)
+gene_expression<- read.csv("C:/Users/debot/Desktop/datos/gene_expression.csv", sep = ";", header = FALSE)
+column_names<- read.csv("C:/Users/debot/Desktop/datos/column_names.txt", sep = ";", header = FALSE)
+
+
+# Creación de un df aglomerando los archivos cargados
+data <- gene_expression
+colnames(data)<-column_names[,1]
+row.names(data)<-classes[,1]
+data<- cbind(data,classes = classes[,2]) # añadimos la columna clases
+
+
+dim(data) # Compruebo que las dimensiones del df son, para las columnas, una unidad mayor que en el df "gene_expression"
+table(data[,501]) # Compruebo el contenido de la nueva columna
+      
+# Imputación de los NA
+anyNA(data) # No hay valores missing en el df
+# na.omit(data) # En caso de haberlos, esta función elimina las filas que tengan un NA
+# dim (data) # Para saber si se han eliminado filas usaríamos dim()
+
+
+# Otros tipos de procesamiento
+sumas<- colSums(data[1:500], na.rm = FALSE, dims = 1 ) # Suma de los datos por columnas
+columnascero <- names(sumas[sumas==0]) # Se extraen los nombres de las columnas cuyas sumas son == 0
+print(columnascero) # Se muestran los genes (columnas) a excluir
+data <- data[, !names(data) %in% columnascero] #  Eliminación de las columnas
+colSums(is.na(data)) # Revisión de que tras el filtrado no se han generado valores NA
+data_num <- data.frame(sapply(data[,1:(ncol(data) - 1)], as.numeric)) # Conversión de los valores de expresión a numéricos.
+sc_data_num <- scale(data_num[,1:(ncol(data) - 1)])# Escalado de los datos
+colSums(is.na(data_num)) # Revisión de que tras el transformado no se han generado valores NA
+colSums(is.na(sc_data_num))
+
+# Guardado de datos
+# write.csv(data_num, "data_num.csv", row.names = FALSE)
+# sc_data_num_df <- as.data.frame(sc_data_num) # Conversión de la matriz a un data frame 
+# write.csv(sc_data_num_df, "sc_data_num.csv", row.names = FALSE)
+```
+
+**¿Qué método habéis escogido para llevar a cabo la imputación de los datos? Razonad vuestra respuesta. (0,3 puntos)**
+
+Para eliminar datos que no son útiles para el desarrollo de esta tarea, y que posiblemente contribuirían a generar ruido en los resultados de la misma, se eliminaron aquellos genes que no se expresaban en ninguna muestra. En concreto 3 : "MIER3", "ZCCHC12" y "RPL22L1". Para ello, se realizó una suma por columnas de los datos de expresión con la función *colSums()*, y con el comando *columnascero \<- names(sumas[sumas==0])* se identificaron los genes no expresados para luego eliminarlos.
+
+**¿Habéis llevado a cabo algún otro tipo de procesamiento? Razonad vuestra respuesta. (0,2 puntos).**
+
+En previsión del uso de los datos de expresión en los apartados posteriores de la tarea, se han transformado a numéricos (indispensable en algunos algoritmos) y se han escalado los valores de expresión génica. Este último paso permite nivelar la magnitud de expresión de los genes entre sí, favoreciendo que nuestras conclusiones se basen en razones biológicas relevantes, y no simplemente en diferencias en la magnitud de expresión de genes que no tengan que ver con la patología o condición de estudio, sino con la forma en la que se transcriben los genes en el ser humano.
+
+## Implementación de cuatro métodos de aprendizaje no supervisado
+
+En esta sección se implementarán los métodos X e Y de reducción de dimensionalidad, y W y Z de clusterización.
+
+```{r librerias}
+# librerias mixtas
+library(stats)
+library(ggplot2)
+
+# librerias de reduccion de dimensionalidad
+library(plotly)
+library(dplyr)
+
+# librerias para clusterizacion
+library(factoextra)
+library(cluster)
+library(ggdendro)
+```
+
+```{r Metodos de reduccion de la dimensionalidad}
+##############################################
+# MÉTODOS DE REDUCCIÓN DE LA DIMENSIONALIDAD #----------------------------------
+##############################################
+
+# Calculo de PCA (componentes principales)
+
+pca.results <- prcomp(sc_data_num, center=TRUE, scale=TRUE) 
+pca.df <- data.frame(pca.results$x) # Resultado de las componentes principales
+
+varianzas <- pca.results$sdev^2 # Varianza 
+total.varianza <- sum(varianzas) # Total de la varianza de los datos
+varianza.explicada <- varianzas/total.varianza # Varianza explicada por cada componente principal
+varianza.acumulada <- cumsum(varianza.explicada) # Calculamos la varianza acumulada. Vemos que se supera el 0.9 de explicabilidad (0.9008494) en la posicion 155
+n.pc <- min(which(varianza.acumulada > 0.9)) # Obtenemos el numero de componentes principales que explican el 90% de la varianza (155)
+
+# Creo las etiquetas de los ejes del gráfico
+x_label <- paste0(paste('PC1', round(varianza.explicada[1] * 100, 2)), '%')
+y_label <- paste0(paste('PC2', round(varianza.explicada[2] * 100, 2)), '%')
+z_label <- paste0(paste('PC3', round(varianza.explicada[3] * 100, 2)), '%')
+
+# Representacion grafica de solo las dos primeras componentes principales 
+ggplot(pca.df, aes(x=PC1, y=PC2, color=data$classes)) +
+  geom_point(size=3) +
+  scale_color_manual(values=c('red', 'blue', 'green', 'orange', 'purple')) +
+  labs(title="Método PCA Types of Cancer", x=x_label, y=y_label, color='Grupo') +
+  theme_classic() +
+  theme(panel.grid.major = element_line(color="gray90"), panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "gray95"), plot.title = element_text(hjust = 0.5))
+
+# Conclusion: parece que existen relaciones lineales proporcionadas por la PC1 y la PC2  que diferencian a las muestras de AGH de los canceres CFB CGC CHC y HPB. El grupo de    AGH tiene algunas muestras que no se agrupan claramente con el resto del grupo, al      menos respresentando solo estas 3 componentes. El resto de grupos de cancer se agrupa   por tipo, pero no se separa del resto, por lo que en un analisis sin etiquetas, solo se  distinguiria AGH.
+
+# Representacion grafica de las tres primeras componentes principales 
+fig <- plot_ly(pca.df, 
+               x = ~PC1, 
+               y = ~PC2, 
+               z = ~PC3, 
+               color = ~data$classes,
+               colors = c('red', 'blue', 'green', 'orange', 'purple'),
+               type = 'scatter3d', 
+               mode = 'markers') %>%
+  layout(title = "Metodo PCA Types of Cancer",
+         scene = list(xaxis = list(title = x_label),
+                      yaxis = list(title = y_label),
+                      zaxis = list(title = z_label)))
+fig
+
+# Conclusion: Si añadimos el tercer componente principal al grafico observamos que el algoritmo, de nuevo, solo es capaz de separar a las muestras de cancer AGH. Por lo tanto, parece que incluir la tercera componente no es extremadamente relevante. De hecho, el componente que más permite separar los datos de AGH segun este grafico parece ser la PC2.
+
+
+
+# Calculo de t-SNE-----------------------------------------------
+
+library(Rtsne) # Para hacer el tSNE
+library(FNN) # Para evaluar la calidad de la reduccion
+
+# Determinamos la semilla para reproducibilidad
+set.seed(1234)
+
+tsne <- Rtsne(X=sc_data_num, perplexity =15)
+tsne_result <- data.frame(tsne$Y)
+
+# Graficamos
+ggplot(tsne_result, aes(x = X1, y = X2, color = data$classes)) +
+  geom_point(size = 3) +
+  scale_color_manual(values = c("red", "blue", "green", "orange", "purple")) +
+  labs(title = "Método t-SNE Types of Cancer", x = "PC1", y = "PC2", color = "Grupo") +
+  theme_classic() +
+  theme(panel.grid.major = element_line(color = "gray90"), panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "gray95"), plot.title=element_text(hjust=0.5))
+
+# Conclusion: el algoritmo de t-SNE es capaz de separar los 5 tipos de cancer casi a la perfeccion.Solo se observan 2 CGC que clusterizan con CFB, dos que lo hacen con HPB, y un HPB que clusteriza con CGC. El resto de las muestras se agrupa con segun el cancer al que pertenecen. Compruebo que la transformacion a menor dimensionalidad es buena:
+
+# Función para calcular la tasa de conservación de k-vecinos más cercanos
+conservation_rate <- function(sc_data_num, tsne_result, k) {
+  
+  # Calcula los k vecinos más cercanos en el espacio original
+  original_nn <- get.knnx(data = sc_data_num, query = sc_data_num, k = k)
+  
+  # Calcula los k vecinos más cercanos en el espacio reducido
+  reduced_nn <- get.knnx(data = tsne_result, query = tsne_result, k = k)
+  
+  # Calcula el número de coincidencias de vecinos en ambos espacios
+  overlap_count <- sapply(1:nrow(sc_data_num), function(i) {
+    length(intersect(original_nn$nn.index[i, ], reduced_nn$nn.index[i, ]))
+  })
+  
+  # Devuelve el promedio de coincidencias sobre el total de vecinos k
+  mean(overlap_count) / k
+}
+
+# Comprobacion para 2 vecinos
+k_neighbors <- 2
+rate_2d <- conservation_rate(sc_data_num, tsne_result, k_neighbors)
+rate_3d <- conservation_rate(sc_data_num, tsne_result, k_neighbors)
+
+print(paste("Tasa de conservación de 10-vecinos más cercanos en 2D:", rate_2d))
+print(paste("Tasa de conservación de 10-vecinos más cercanos en 3D:", rate_3d))
+
+# Conclusion: Una tasa de conservación de aproximadamente 0.65 indica que el  65% de los 10 vecinos más cercanos en el espacio original permanecen vecinos después de la reducción de dimensionalidad con t-SNE. Este valor, para el tsne, cuyo objetivo es mantener las relaciones locales entre vecinos mas que las globales, y en el contexto de un estudio en cancer, donde los datos son inherentemente "ruidosos", es un buen resultado. Ademas esto se corrobora con la evidente separacion de los grupos en el grafico mostrado anteriormente.
+
+```
+
+```{r Metodos de clusterización}
+
+#############################
+# MÉTODOS DE CLUSTERIZACIÓN #---------------------------------------------------
+#############################
+
+# Extraigo las componentes principales más relevantes para hacer el k-means
+pca.df_reducido <- pca.df[, 1:n.pc]
+
+#---- Calculo de K-means ----
+
+# nº optimo de clusters
+fviz_nbclust(pca.df_reducido, kmeans, method = "wss") +
+  ggtitle("Clustering no jerárquico: metodo K-means.", subtitle = "Numero optimo de clusters:") +
+  theme_classic()
+
+# Aplicación de la funcion k-means sobre el nº optimo de clusters.
+kmeans_result <- kmeans(pca.df_reducido, centers = 4, iter.max = 100, nstart =100 )
+
+
+# Graficación de los datos con la función fviz_cluster.
+fviz_cluster(kmeans_result, pca.df_reducido, xlab = '', ylab = '') +
+  ggtitle("Grafico de clusters", subtitle = "centroides = 4") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, margin = margin(b = -10)))
+
+
+#---- Clustering jerarquico aglomerativo ----
+
+# Calcular la matriz de distancias (por defecto usa Euclidean)
+dist_matrix <- dist(pca.df_reducido) # Usamos las componentes principales reducidas
+
+# Realizar el Clustering Jerárquico Aglomerativo con el método de Ward
+hc_ward <- hclust(dist_matrix, method = "ward.D2")
+
+# Graficar el dendrograma con el número óptimo de clusters
+fviz_dend(hc_ward, 
+          #k = 4,             # Número de clusters que deseamos
+          rect = TRUE,       # Añadir rectángulos alrededor de los clústeres
+          rect_border = "blue", # Color de los bordes de los rectángulos
+          rect_fill = TRUE,  # Colorear los rectángulos
+          main = "Dendrograma del Clustering Jerárquico (Método de Ward)",
+          xlab = "Observaciones", 
+          ylab = "Distancia")
+
+```
+
+**¿Cuál es el motivo por el cual habéis seleccionado estas técnicas de reducción de dimensionalidad? (0,3 puntos).**
+
+- PCA: El análisis de componentes principales es el estándar en el estado del arte para una primera aproximación a los datos y para visualizar si los datos pueden representarse en un espacio lineal. 
+
+- tSNE: Ideal para explorar agrupaciones en niveles locales. Además es muy eficiente en el manejo de datos no lineales porque captura relaciones polinómicas entre las características, y como se mostró en los resultados de la PCA, las relaciones lineales no estaban siendo suficiente para diferenciar a los 5 tipos de cáncer. Es un algoritmo que da muy buenos resultados, tanto en la bibliografía, como en los ejercicios de clase, como con este dataset.
+
+**¿Cuál es el motivo por el cual habéis seleccionado estas técnicas de clusterización? (0,3 puntos).**
+
+- K-means: Esta técnica permite la división de los datos y su agrupación por similitud de medias, por lo que es util a la hora de ver posibles grupos naturales. En la gráfica obtenida para buscar el valor K más óptimo, se observa en k=4 es donde se produce la rotura del codo dando un cambio de tendencia en la pendiente.
+
+- Clustering jerarquico aglomerativo: metodo ward. dado que la representacion gráfica de la distribución de los datos obtenida tras el analisis del k-means parece densa en el centro y más dispersa en los bordes, con convex hulls envolviendo cada clúster, el método de Ward es el más apropiado, ya que tiende a generar clústeres compactos y bien separados, lo que se alinea con la estructura del K-means.
+
+**En ambos casos, ¿qué aspectos positivos y negativos tienen cada una? (0,2 puntos).**
+
+- PCA: Tiene pocos aspectos negativos más allá del hecho de que sólo sirve para variables linealmente relacionadas, pero es un paso básico en el análisis de datos ómicos y muy útil para visualizar los datos en un primer vistazo. 
+
+- tSNE: Es un algoritmo que da muy buenos resultados en cuanto a visualización de datos, pero no es tan efectivo a la hora de reducir la dimensionalidad a más de 3 dimensiones. Tiene un cierto grado de estocasticidad y por tanto podría presentar problemas de reproducibilidad, pero al utilizar la semilla no da problemas. Se puede utilizar en este conjunto de datos porque no son de tamaño exorbitado, pero si tuviésemos cerca de un millón de muestras, sería muy computacionalmente costoso. En cuanto a sus aspectos positivos los ya mencionados anteriormente: muy efectivo a la hora de representar relaciones no lineales y mantener la localidad de los datos.
+
+- K-means: Es un metodo fácil de implementar y tiene un bajo coste computacional, pero resulta dificil encontrar el numero optimo de centroides y es sensible a valores atipicos
+
+- Clustering jerarquico aglomerativo: es mas resistente a valores atipicos y no es necesario especificar un numero concreto de clusters pero si es recomemdable, lo que hace que al tener varios métodos disponibles, sea más complicado determinarlos. 
+
+
+**En el caso de la clusterización, ¿podéis afirmar con certeza que los clústeres generados son los mejores posibles? Razonad vuestra respuesta. (0,2 puntos).**
+
+Aparentemente si, dado que hemos empleado el método del codo para determinar cual seria el numero óptimo de clusters para realizar la división.  
+
+## Implementación de tres métodos de aprendizaje supervisado y cálculo de métricas de evaluación
+
+```{r}
+
+```
+
+**¿Cuál es el motivo por el cual habéis seleccionado ambas técnicas de aprendizaje supervisado? ¿Cuál ha dado mejores resultados a la hora de clasificar las muestras? Razonad vuestra respuesta (1 punto).**
+
+Blablabla
+
+**¿Habéis considerado oportuno implementar algún método de reducción de dimensionalidad para procesar los datos antes de implementarlos en dichas técnicas? ¿Por qué? (0,5 puntos).**
+
+Blablabla
+
+**¿Qué aspectos positivos y negativos tienen cada una de las técnicas que habéis escogido? (0,25 puntos).**
+
+Blablabla
+
+## Pregunta final
+
+**De estas cuatro opciones (Red de perceptrones, Redes convolucionales, Redes recurrentes y Redes de grafos), ¿qué tipo de arquitectura de deep learning sería la más adecuada para procesar datos de expresión génica? Razonad vuestra respuesta (0,25 puntos).**
+
+Blablabla
